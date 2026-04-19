@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHOMPR — Pac-Man Evolved</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --neon-yellow: #FFE600;
+    --neon-cyan: #00F5FF;
+    --neon-pink: #FF006E;
+    --neon-green: #00FF88;
+    --neon-orange: #FF6B00;
+    --neon-purple: #BF00FF;
+    --bg-dark: #050510;
+    --bg-card: #0D0D2B;
+    --bg-panel: #0A0A1E;
+    --border-glow: rgba(0,245,255,0.3);
+    --cell: 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-dark);
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(0,245,255,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(255,0,110,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 90%, rgba(191,0,255,0.04) 0%, transparent 50%);
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  .logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 32px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 20px var(--neon-yellow), 0 0 40px rgba(255,230,0,0.5);
+    letter-spacing: 4px;
+    margin-bottom: 4px;
+    animation: pulse-logo 2s ease-in-out infinite;
+  }
+  .logo span { color: var(--neon-cyan); }
+
+  @keyframes pulse-logo {
+    0%, 100% { text-shadow: 0 0 20px var(--neon-yellow), 0 0 40px rgba(255,230,0,0.5); }
+    50% { text-shadow: 0 0 30px var(--neon-yellow), 0 0 60px rgba(255,230,0,0.7), 0 0 80px rgba(255,230,0,0.3); }
+  }
+
+  .tagline {
+    font-size: 9px;
+    color: var(--neon-cyan);
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+    opacity: 0.7;
+  }
+
+  #screen-menu, #screen-game, #screen-gameover, #screen-leaderboard {
+    display: none;
+    width: 100%;
+    max-width: 900px;
+    flex-direction: column;
+    align-items: center;
+  }
+  .active { display: flex !important; }
+
+  /* MENU */
+  .menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+    max-width: 600px;
+    margin: 20px 0;
+  }
+
+  .menu-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    padding: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .menu-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,245,255,0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .menu-btn:hover { border-color: var(--neon-cyan); transform: translateY(-2px); }
+  .menu-btn:hover::before { opacity: 1; }
+  .menu-btn .btn-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+  .menu-btn .btn-label { font-size: 10px; color: var(--neon-cyan); letter-spacing: 1px; }
+  .menu-btn .btn-sub { font-size: 8px; color: rgba(255,255,255,0.4); margin-top: 4px; letter-spacing: 1px; }
+  .menu-btn.full { grid-column: span 2; }
+  .menu-btn.start { border-color: var(--neon-yellow); }
+  .menu-btn.start .btn-label { color: var(--neon-yellow); }
+  .menu-btn.start:hover { background: rgba(255,230,0,0.08); }
+
+  .name-input-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .name-input {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    outline: none;
+    letter-spacing: 1px;
+  }
+  .name-input:focus { border-color: var(--neon-cyan); }
+  .name-input::placeholder { color: rgba(255,255,255,0.2); }
+
+  /* MAP PICKER */
+  .map-picker {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .map-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    color: rgba(255,255,255,0.6);
+    font-family: 'Orbitron', monospace;
+    font-size: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .map-chip.selected { border-color: var(--neon-yellow); color: var(--neon-yellow); background: rgba(255,230,0,0.08); }
+  .map-chip:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+
+  /* GAME SCREEN */
+  #screen-game { flex-direction: row; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+
+  .game-sidebar {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 10px;
+    padding: 16px;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .stat-label {
+    font-size: 8px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+    margin-bottom: 2px;
+  }
+  .stat-value {
+    font-size: 18px;
+    color: var(--neon-yellow);
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(255,230,0,0.5);
+  }
+  .stat-sep { border: none; border-top: 1px solid rgba(255,255,255,0.06); }
+
+  .lives-wrap { display: flex; gap: 4px; }
+  .life-icon { font-size: 14px; }
+
+  .power-slots { display: flex; flex-direction: column; gap: 6px; }
+  .power-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    font-size: 8px;
+    color: rgba(255,255,255,0.3);
+    transition: all 0.3s;
+  }
+  .power-slot.active {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    background: rgba(0,255,136,0.08);
+    animation: power-glow 0.8s ease-in-out infinite alternate;
+  }
+  .power-slot .picon { font-size: 14px; }
+  .power-slot .pbar { flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+  .power-slot .pbar-fill { height: 100%; background: var(--neon-green); transition: width 0.1s; }
+
+  @keyframes power-glow {
+    from { box-shadow: 0 0 4px rgba(0,255,136,0.2); }
+    to { box-shadow: 0 0 12px rgba(0,255,136,0.5); }
+  }
+
+  .legend { display: flex; flex-direction: column; gap: 4px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 7px; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* CANVAS */
+  #gameCanvas {
+    border: 2px solid var(--border-glow);
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0,245,255,0.1), inset 0 0 30px rgba(0,0,0,0.5);
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  /* MESSAGE OVERLAY */
+  #msg-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: none;
+  }
+  #msg-box {
+    background: rgba(5,5,16,0.95);
+    border: 2px solid var(--neon-cyan);
+    border-radius: 12px;
+    padding: 24px 40px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0,245,255,0.3);
+    transform: scale(0);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #msg-box.show { transform: scale(1); }
+  #msg-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px;
+    color: var(--neon-yellow);
+    margin-bottom: 8px;
+    text-shadow: 0 0 20px var(--neon-yellow);
+  }
+  #msg-sub { font-size: 9px; color: rgba(255,255,255,0.6); letter-spacing: 2px; }
+
+  /* GAME OVER */
+  .gameover-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 12px;
+    padding: 32px 48px;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+  }
+  .go-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 24px;
+    color: var(--neon-pink);
+    text-shadow: 0 0 20px var(--neon-pink);
+    margin-bottom: 8px;
+  }
+  .go-score { font-size: 36px; color: var(--neon-yellow); font-weight: 900; margin: 16px 0; text-shadow: 0 0 20px rgba(255,230,0,0.6); }
+  .go-detail { font-size: 8px; color: rgba(255,255,255,0.4); letter-spacing: 2px; margin-bottom: 24px; }
+  .go-new-record { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--neon-green); margin-bottom: 12px; animation: blink 0.7s step-end infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+  .action-btns { display: flex; flex-direction: column; gap: 8px; }
+  .action-btn {
+    background: transparent;
+    border: 1px solid var(--border-glow);
+    color: var(--neon-cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+  .action-btn:hover { border-color: var(--neon-cyan); background: rgba(0,245,255,0.08); transform: translateX(4px); }
+  .action-btn.primary { border-color: var(--neon-yellow); color: var(--neon-yellow); }
+  .action-btn.primary:hover { background: rgba(255,230,0,0.1); }
+
+  /* LEADERBOARD */
+  .lb-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 560px;
+  }
+  .lb-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 15px var(--neon-cyan);
+    margin-bottom: 20px;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .lb-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 80px 70px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 10px;
+  }
+  .lb-row.header { font-size: 8px; color: rgba(255,255,255,0.3); letter-spacing: 2px; }
+  .lb-row.data { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); transition: background 0.2s; }
+  .lb-row.data:hover { background: rgba(0,245,255,0.05); }
+  .lb-row.gold { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.05); }
+  .lb-row.silver { border-color: rgba(192,192,192,0.2); }
+  .lb-row.bronze { border-color: rgba(205,127,50,0.2); }
+  .lb-rank { font-weight: 700; color: rgba(255,255,255,0.5); text-align: center; }
+  .lb-rank.r1 { color: #FFD700; text-shadow: 0 0 8px rgba(255,215,0,0.6); }
+  .lb-rank.r2 { color: #C0C0C0; }
+  .lb-rank.r3 { color: #CD7F32; }
+  .lb-name { color: #fff; letter-spacing: 1px; }
+  .lb-score { color: var(--neon-yellow); font-weight: 700; text-align: right; }
+  .lb-map { font-size: 7px; color: rgba(255,255,255,0.3); text-align: right; letter-spacing: 1px; }
+  .lb-empty { text-align: center; padding: 32px; font-size: 9px; color: rgba(255,255,255,0.2); letter-spacing: 2px; }
+  .lb-you { font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--neon-green); margin-left: 4px; }
+
+  /* POWER-UP POPUP */
+  .pu-popup {
+    position: fixed;
+    pointer-events: none;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    opacity: 0;
+    transform: translateY(0);
+    transition: opacity 0.2s, transform 0.5s;
+    z-index: 200;
+  }
+  .pu-popup.show { opacity: 1; transform: translateY(-30px); }
+
+  /* MOBILE CONTROLS */
+  .mobile-controls {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 12px;
+  }
+  .ctrl-row { display: flex; gap: 4px; }
+  .ctrl-btn {
+    width: 50px; height: 50px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    color: var(--neon-cyan);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    active: transform: scale(0.95);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .ctrl-btn:active { background: rgba(0,245,255,0.1); }
+
+  @media (max-width: 700px) {
+    .mobile-controls { display: flex; }
+    #screen-game { flex-direction: column; }
+    .game-sidebar { flex-direction: row; flex-wrap: wrap; min-width: unset; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="logo">CH<span>O</span>MPR</div>
+  <div class="tagline">POWER-UP EDITION</div>
+
+  <!-- MENU -->
+  <div id="screen-menu" class="active">
+    <div class="name-input-wrap">
+      <input class="name-input" id="playerName" placeholder="ENTER CALLSIGN..." maxlength="12" value="">
+    </div>
+    <div class="stat-label" style="margin-bottom:10px;letter-spacing:2px;">SELECT MAP</div>
+    <div class="map-picker">
+      <div class="map-chip selected" data-map="classic">CLASSIC</div>
+      <div class="map-chip" data-map="maze">LABYRINTH</div>
+      <div class="map-chip" data-map="open">OPEN ARENA</div>
+      <div class="map-chip" data-map="spiral">SPIRAL</div>
+      <div class="map-chip" data-map="random">RANDOM</div>
+    </div>
+    <div class="menu-grid">
+      <div class="menu-btn start full" id="btn-start">
+        <span class="btn-icon">▶</span>
+        <span class="btn-label">START GAME</span>
+        <span class="btn-sub">ARROWS / WASD TO MOVE</span>
+      </div>
+      <div class="menu-btn" id="btn-lb-menu">
+        <span class="btn-icon">🏆</span>
+        <span class="btn-label">LEADERBOARD</span>
+        <span class="btn-sub">TOP CHOMPERS</span>
+      </div>
+      <div class="menu-btn" id="btn-howto">
+        <span class="btn-icon">❓</span>
+        <span class="btn-label">HOW TO PLAY</span>
+        <span class="btn-sub">POWER-UPS GUIDE</span>
+      </div>
+    </div>
+
+    <!-- Power-ups legend -->
+    <div style="background:var(--bg-card);border:1px solid var(--border-glow);border-radius:10px;padding:16px 20px;max-width:500px;width:100%;margin-top:8px;">
+      <div class="stat-label" style="margin-bottom:12px;letter-spacing:2px;">POWER-UPS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="legend-item"><span style="font-size:16px;">⚡</span><div><div style="color:var(--neon-yellow);font-size:8px;letter-spacing:1px;">SPEED BOOST</div><div style="font-size:7px;color:rgba(255,255,255,0.3);">2x speed · 5 sec</div></div></div>
+        <div class="legend-item"><span style="font-size:16px;">💥</span><div><div style="color:var(--neon-pink);font-size:8px;letter-spacing:1px;">WALL BREAKER</div><div style="font-size:7px;color:rgba(255,255,255,0.3);">Smash walls · 4 sec</div></div></div>
+        <div class="legend-item"><span style="font-size:16px;">👻</span><div><div style="color:var(--neon-cyan);font-size:8px;letter-spacing:1px;">GHOST MODE</div><div style="font-size:7px;color:rgba(255,255,255,0.3);">Pass through · 4 sec</div></div></div>
+        <div class="legend-item"><span style="font-size:16px;">🔥</span><div><div style="color:var(--neon-orange);font-size:8px;letter-spacing:1px;">INFERNO</div><div style="font-size:7px;color:rgba(255,255,255,0.3);">Zap all ghosts · 8 sec</div></div></div>
+        <div class="legend-item"><span style="font-size:16px;">🧲</span><div><div style="color:var(--neon-purple);font-size:8px;letter-spacing:1px;">MAGNET</div><div style="font-size:7px;color:rgba(255,255,255,0.3);">Attract dots · 5 sec</div></div></div>
+        <div class="legend-item"><span style="font-size:16px;">⭐</span><div><div style="color:var(--neon-green);font-size:8px;letter-spacing:1px;">STAR POWER</div><div style="font-size:7px;color:rgba(255,255,255,0.3);">3x points · 6 sec</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game">
+    <div class="game-sidebar">
+      <div>
+        <div class="stat-label">SCORE</div>
+        <div class="stat-value" id="ui-score">0</div>
+      </div>
+      <hr class="stat-sep">
+      <div>
+        <div class="stat-label">HIGH SCORE</div>
+        <div class="stat-value" id="ui-hiscore" style="font-size:13px;">0</div>
+      </div>
+      <hr class="stat-sep">
+      <div>
+        <div class="stat-label">LEVEL</div>
+        <div class="stat-value" id="ui-level">1</div>
+      </div>
+      <div>
+        <div class="stat-label">LIVES</div>
+        <div class="lives-wrap" id="ui-lives"></div>
+      </div>
+      <hr class="stat-sep">
+      <div>
+        <div class="stat-label" style="margin-bottom:8px;">ACTIVE POWERS</div>
+        <div class="power-slots" id="ui-powers"></div>
+      </div>
+      <hr class="stat-sep">
+      <div class="legend">
+        <div class="stat-label" style="margin-bottom:6px;">MAP</div>
+        <div id="ui-mapname" style="font-size:9px;color:var(--neon-cyan);letter-spacing:1px;"></div>
+      </div>
+      <button class="action-btn" id="btn-sidebar-menu" style="margin-top:auto;font-size:7px;">⬅ MENU</button>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <canvas id="gameCanvas"></canvas>
+      <div class="mobile-controls">
+        <div class="ctrl-row"><div class="ctrl-btn" id="btn-up">▲</div></div>
+        <div class="ctrl-row">
+          <div class="ctrl-btn" id="btn-left">◀</div>
+          <div class="ctrl-btn" id="btn-down">▼</div>
+          <div class="ctrl-btn" id="btn-right">▶</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="screen-gameover">
+    <div class="gameover-card">
+      <div class="go-title" id="go-title">GAME OVER</div>
+      <div class="go-score" id="go-score">0</div>
+      <div class="go-detail" id="go-detail"></div>
+      <div class="go-new-record" id="go-record" style="display:none;">★ NEW RECORD! ★</div>
+      <div class="action-btns">
+        <button class="action-btn primary" id="btn-playagain">▶ PLAY AGAIN</button>
+        <button class="action-btn" id="btn-lb-gameover">🏆 LEADERBOARD</button>
+        <button class="action-btn" id="btn-menu-gameover">⬅ MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="screen-leaderboard">
+    <div class="lb-card">
+      <div class="lb-title">HALL OF FAME</div>
+      <div class="lb-row header">
+        <div>RANK</div><div>PLAYER</div><div style="text-align:right;">SCORE</div><div style="text-align:right;">MAP</div>
+      </div>
+      <div id="lb-entries"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="action-btn primary" id="btn-play-lb">▶ PLAY</button>
+      <button class="action-btn" id="btn-menu-lb">⬅ MENU</button>
+      <button class="action-btn" id="btn-clear-lb" style="border-color:var(--neon-pink);color:var(--neon-pink);">CLEAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlays -->
+<div id="msg-overlay"><div id="msg-box"><div id="msg-title"></div><div id="msg-sub"></div></div></div>
+<div class="pu-popup" id="pu-popup"></div>
+
+<script>
+// ==================== MAPS ====================
+// D = ghost door, space = open ghost house area
+const MAPS = {
+  classic: {
+    name: 'CLASSIC',
+    cols: 21, rows: 21,
+    layout: [
+      "#####################",
+      "#.........#.........#",
+      "#.##.###.#.#.###.##.#",
+      "#o##.###.#.#.###.##o#",
+      "#.##.###.#.#.###.##.#",
+      "#...................#",
+      "#.##.#.#####.#.##..#",
+      "#.##.#.......#.##..#",
+      "#.##.#.##D##.#.##..#",
+      "####.###   ###.####",
+      "     #       #     ",
+      "####.###   ###.####",
+      "#.##.#.#####.#.##..#",
+      "#.##.#.......#.##..#",
+      "#.##.#.#####.#.##..#",
+      "#...................#",
+      "#.##.###.#.#.###.##.#",
+      "#o##.###.#.#.###.##o#",
+      "#.##.###.#.#.###.##.#",
+      "#.........#.........#",
+      "#####################"
+    ]
+  },
+  maze: {
+    name: 'LABYRINTH',
+    cols: 23, rows: 21,
+    layout: [
+      "#######################",
+      "#....#....#....#....#.#",
+      "#.##.#.##.#.##.#.##.#.#",
+      "#o.....................o#",
+      "#.##.#.##.#.##.#.##.#.#",
+      "#....#.....#.....#....#",
+      "####.###.#####.###.####",
+      "#....#...........#....#",
+      "#.##.#.##D###D##.#.##.#",
+      "#....#...........#....#",
+      "#.##.###.#####.###.##.#",
+      "#....#...........#....#",
+      "#.##.#.####.##.#.##.#",
+      "#....#...........#....#",
+      "####.###.#####.###.####",
+      "#....#.....#.....#....#",
+      "#.##.#.##.#.##.#.##.#.#",
+      "#o.....................o#",
+      "#.##.#.##.#.##.#.##.#.#",
+      "#....#....#....#....#.#",
+      "#######################"
+    ]
+  },
+  open: {
+    name: 'OPEN ARENA',
+    cols: 21, rows: 19,
+    layout: [
+      "#####################",
+      "#...................#",
+      "#.o.#.#.#.#.#.#.o..#",
+      "#...#...........#...#",
+      "#.#...#.#####.#...#.#",
+      "#.#.....#   #.....#.#",
+      "#.....#.##D##.#.....#",
+      "#.....#.......#.....#",
+      "####.#.........#.####",
+      "#.....#.......#.....#",
+      "#.....#.#####.#.....#",
+      "#.#...............#.#",
+      "#.#.o.#.#####.#.o..#",
+      "#...#...........#...#",
+      "#.......#.#.#.......#",
+      "#...................#",
+      "#o.................o#",
+      "#...................#",
+      "#####################"
+    ]
+  },
+  spiral: {
+    name: 'SPIRAL',
+    cols: 21, rows: 21,
+    layout: [
+      "#####################",
+      "#...................#",
+      "#.###############..#",
+      "#.#.............#..#",
+      "#.#.###########.#..#",
+      "#.#.#.........#.#..#",
+      "#.#.#.#######.#.#..#",
+      "#.#.#.#.....#.#.#..#",
+      "#.#.#.#.###.#.#.#..#",
+      "#.#.#.#.#D#.#.#.#..#",
+      "#.#.#.#...#.#.#.#..#",
+      "#.#.#.#####.#.#.#..#",
+      "#.#.#.......#.#.#..#",
+      "#.#.#########.#.#..#",
+      "#.#...........#.#..#",
+      "#.#############.#..#",
+      "#o..............#.o#",
+      "#.###############..#",
+      "#...................#",
+      "#o.................o#",
+      "#####################"
+    ]
+  },
+  random: {
+    name: 'RANDOM',
+    cols: 21, rows: 21,
+    layout: null
+  }
+};
+
+function generateRandomMap() {
+  const rows = 21, cols = 21;
+  const grid = Array.from({length: rows}, () => Array(cols).fill('.'));
+  // Border
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (r === 0 || r === rows-1 || c === 0 || c === cols-1) grid[r][c] = '#';
+  }
+  // Random walls (symmetric)
+  for (let r = 1; r < rows-1; r++) {
+    for (let c = 1; c < cols/2; c++) {
+      if (Math.random() < 0.18 && r > 2 && r < rows-3) {
+        grid[r][c] = '#';
+        grid[r][cols-1-c] = '#';
+      }
+    }
+  }
+  // Ghost house door
+  const gr = Math.floor(rows/2), gc = Math.floor(cols/2);
+  grid[gr][gc] = 'D';
+  // Power pellets in corners
+  grid[1][1] = 'o'; grid[1][cols-2] = 'o';
+  grid[rows-2][1] = 'o'; grid[rows-2][cols-2] = 'o';
+  return grid.map(row => row.join(''));
+}
+
+// ==================== GAME CONSTANTS ====================
+const CELL = 20;
+const POWERS = {
+  speed:  { icon: '⚡', color: '#FFE600', label: 'SPEED',    dur: 5000 },
+  breaker:{ icon: '💥', color: '#FF006E', label: 'BREAKER',  dur: 4000 },
+  ghost:  { icon: '👻', color: '#00F5FF', label: 'GHOST',    dur: 4000 },
+  inferno:{ icon: '🔥', color: '#FF6B00', label: 'INFERNO',  dur: 8000 },
+  magnet: { icon: '🧲', color: '#BF00FF', label: 'MAGNET',   dur: 5000 },
+  star:   { icon: '⭐', color: '#00FF88', label: 'STAR',     dur: 6000 }
+};
+const POWER_TYPES = Object.keys(POWERS);
+const GHOST_COLORS = ['#FF4444','#FFB8FF','#00FFFF','#FFB852'];
+const GHOST_NAMES = ['BLINKY','PINKY','INKY','CLYDE'];
+
+// ==================== GAME STATE ====================
+let G = {};
+let animFrame;
+let selectedMap = 'classic';
+let playerName = 'PLAYER';
+
+// ==================== MAP SELECTOR ====================
+document.querySelectorAll('.map-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.map-chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    selectedMap = chip.dataset.map;
+  });
+});
+
+// ==================== PARSE MAP ====================
+function parseMap(mapKey) {
+  const def = MAPS[mapKey];
+  let layout = def.layout;
+  if (mapKey === 'random') layout = generateRandomMap();
+  const rows = layout.length;
+  const cols = layout[0].length;
+  const cells = [];
+  let pacStart = {x:1, y:1};
+  let ghostHouse = [];
+  let dotCount = 0;
+  const powerUps = [];
+
+  for (let r = 0; r < rows; r++) {
+    cells[r] = [];
+    for (let c = 0; c < cols; c++) {
+      const ch = layout[r][c];
+      let cell = { wall: false, door: false, dot: false, power: false, pu: null };
+      if (ch === '#') cell.wall = true;
+      else if (ch === 'D' || ch === '-') cell.door = true;
+      else if (ch === '.') { cell.dot = true; dotCount++; }
+      else if (ch === 'o') { cell.power = true; dotCount++; }
+      else if (ch === 'P') pacStart = {x: c, y: r};
+      else if (ch === ' ') {
+        const mid = Math.floor(rows/2);
+        if (Math.abs(r - mid) <= 1) ghostHouse.push({x: c, y: r});
+      }
+      cells[r][c] = cell;
+    }
+  }
+
+  // Place random power-up items on empty cells (not walls/doors)
+  const puPositions = [];
+  for (let r = 2; r < rows-2; r++) {
+    for (let c = 2; c < cols-2; c++) {
+      if (!cells[r][c].wall && !cells[r][c].door && !cells[r][c].dot && !cells[r][c].power) {
+        puPositions.push({x:c, y:r});
+      }
+    }
+  }
+  shuffle(puPositions);
+  const puCount = Math.min(6, Math.floor(puPositions.length / 8));
+  for (let i = 0; i < puCount; i++) {
+    const pos = puPositions[i];
+    const type = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)];
+    cells[pos.y][pos.x].pu = type;
+    powerUps.push({x: pos.x, y: pos.y, type, visible: true});
+  }
+
+  // Find ghost house center
+  if (ghostHouse.length === 0) {
+    ghostHouse = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+  }
+
+  return { cells, rows, cols, pacStart, ghostHouse, dotCount, powerUps, mapName: def.name };
+}
+
+// ==================== GHOST CLASS ====================
+// Grid-locked movement: ghost moves one cell at a time, animated smoothly between cells.
+// Speed = seconds per cell. Ghost picks next direction when it arrives at a cell centre.
+class Ghost {
+  constructor(col, row, colorIdx, name) {
+    // Grid position (integers)
+    this.col = col; this.row = row;
+    // Pixel position for smooth rendering (starts at cell centre)
+    this.px = col * CELL + CELL / 2;
+    this.py = row * CELL + CELL / 2;
+    // Current movement direction (in cells)
+    this.dir = {x: 1, y: 0};
+    // Next cell we are moving toward
+    this.tCol = col + 1; this.tRow = row;
+    // Progress 0-1 between current cell and target cell
+    this.progress = 0;
+    this.color = GHOST_COLORS[colorIdx % 4];
+    this.baseColor = this.color;
+    this.name = name;
+    this.mode = 'scatter';
+    this.frightTimer = 0;
+    this.colorIdx = colorIdx;
+    // seconds per cell — normal pace
+    this.secPerCell = 0.38;
+  }
+
+  _pickDir(pac, cells, rows, cols) {
+    const col = this.col, row = this.row;
+    const all = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+    // Exclude direct reverse unless it's the only option
+    const fwd = all.filter(d => !(d.x === -this.dir.x && d.y === -this.dir.y));
+    const candidates = (fwd.length ? fwd : all).filter(d => {
+      const nc = col + d.x, nr = row + d.y;
+      if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) return false;
+      const cell = cells[nr][nc];
+      if (cell.wall) return false;
+      if (cell.door && this.mode !== 'eaten') return false;
+      return true;
+    });
+    if (candidates.length === 0) return {x: -this.dir.x, y: -this.dir.y};
+    if (this.mode === 'frightened') {
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+    // Chase / scatter: pick direction closest to target
+    let target;
+    if (this.mode === 'scatter') {
+      const corners = [{x:1,y:1},{x:cols-2,y:1},{x:1,y:rows-2},{x:cols-2,y:rows-2}];
+      target = corners[this.colorIdx % 4];
+    } else {
+      target = {x: pac.col, y: pac.row};
+    }
+    candidates.sort((a, b) => {
+      const da = Math.hypot(col + a.x - target.x, row + a.y - target.y);
+      const db = Math.hypot(col + b.x - target.x, row + b.y - target.y);
+      return da - db;
+    });
+    return candidates[0];
+  }
+
+  update(dt, pac, cells, rows, cols) {
+    // Update timers
+    if (this.mode === 'frightened') {
+      this.frightTimer -= dt;
+      if (this.frightTimer <= 0) {
+        this.mode = 'chase';
+        this.color = this.baseColor;
+      }
+    }
+
+    const spc = this.mode === 'eaten' ? 0.18 :
+                this.mode === 'frightened' ? 0.55 : this.secPerCell;
+    this.progress += (dt / 1000) / spc;
+
+    if (this.progress >= 1) {
+      // Arrived at target cell — snap to it
+      this.progress = 0;
+      this.col = this.tCol;
+      this.row = this.tRow;
+      // Tunnel wrap
+      if (this.col < 0) this.col = cols - 1;
+      if (this.col >= cols) this.col = 0;
+      if (this.row < 0) this.row = rows - 1;
+      if (this.row >= rows) this.row = 0;
+
+      // Check eaten respawn
+      if (this.mode === 'eaten') {
+        const home = {x: Math.floor(cols / 2), y: Math.floor(rows / 2)};
+        if (Math.abs(this.col - home.x) <= 1 && Math.abs(this.row - home.y) <= 1) {
+          this.mode = 'chase';
+          this.color = this.baseColor;
+        }
+      }
+
+      // Pick next direction from current cell
+      const d = this._pickDir(pac, cells, rows, cols);
+      this.dir = d;
+      this.tCol = this.col + d.x;
+      this.tRow = this.row + d.y;
+      // Clamp target to grid (tunnels handled on arrival)
+      if (this.tCol < 0) this.tCol = cols - 1;
+      if (this.tCol >= cols) this.tCol = 0;
+    }
+
+    // Interpolate pixel position
+    const t = this.progress;
+    this.px = (this.col + t * this.dir.x) * CELL + CELL / 2;
+    this.py = (this.row + t * this.dir.y) * CELL + CELL / 2;
+  }
+
+  frighten() {
+    if (this.mode !== 'eaten') {
+      this.mode = 'frightened';
+      this.frightTimer = 6000;
+      this.color = '#1a1aff';
+    }
+  }
+
+  eat() {
+    this.mode = 'eaten';
+    this.color = '#ffffff33';
+  }
+}
+
+// ==================== INIT GAME ====================
+function initGame(mapKey) {
+  cancelAnimationFrame(animFrame);
+  const map = parseMap(mapKey);
+  const canvas = document.getElementById('gameCanvas');
+  canvas.width = map.cols * CELL;
+  canvas.height = map.rows * CELL;
+
+  // Place ghosts near ghost house centre
+  const ghosts = [];
+  const gc = Math.floor(map.cols / 2), gr = Math.floor(map.rows / 2);
+  const offsets = [{x:0,y:0},{x:-1,y:0},{x:1,y:0},{x:0,y:-1}];
+  for (let i = 0; i < 4; i++) {
+    let gCol = gc + offsets[i].x, gRow = gr + offsets[i].y;
+    // Nudge out of wall if needed
+    while (map.cells[gRow] && map.cells[gRow][gCol] && map.cells[gRow][gCol].wall) gCol++;
+    const gh = new Ghost(gCol, gRow, i, GHOST_NAMES[i]);
+    // initialise target one step ahead
+    gh.tCol = gCol + 1; gh.tRow = gRow;
+    ghosts.push(gh);
+  }
+  ghosts[0].mode = 'chase';
+
+  // Find good pac start (top-left open cell)
+  let ps = {col: 1, row: 1};
+  outer: for (let r = 1; r < map.rows - 1; r++) {
+    for (let c = 1; c < map.cols - 1; c++) {
+      if (!map.cells[r][c].wall && !map.cells[r][c].door) { ps = {col: c, row: r}; break outer; }
+    }
+  }
+
+  G = {
+    map, mapKey,
+    cells: map.cells,
+    rows: map.rows, cols: map.cols,
+    // Pac uses grid-locked movement too
+    pac: {
+      col: ps.col, row: ps.row,       // current grid cell
+      px: ps.col * CELL + CELL / 2,   // pixel x (cell centre)
+      py: ps.row * CELL + CELL / 2,   // pixel y
+      tCol: ps.col + 1, tRow: ps.row, // target cell
+      dir: {x: 1, y: 0},              // current moving direction
+      nextDir: {x: 1, y: 0},          // buffered input direction
+      progress: 0,                     // 0-1 between current and target
+      secPerCell: 0.22,               // seconds to cross one cell
+      mouthAngle: 0.25,               // for animation
+      mouthDir: 1,
+    },
+    ghosts,
+    score: 0, lives: 3, level: 1,
+    dotCount: map.dotCount,
+    dotsEaten: 0,
+    powers: {},
+    powerItems: map.powerUps,
+    ghostCombo: 0,
+    state: 'playing',
+    lastTime: 0, dt: 0,
+    scatterTimer: 7000, scatterMode: true,
+    levelSpeedMult: 1,
+    particles: [],
+    floatTexts: [],
+    shakeTimer: 0,
+  };
+
+  updateHiScore();
+  renderSidebar();
+  document.getElementById('ui-mapname').textContent = map.mapName;
+  G.lastTime = performance.now();
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+// ==================== GAME LOOP ====================
+function gameLoop(ts) {
+  if (!G.state) return;
+  G.dt = ts - G.lastTime;
+  G.lastTime = ts;
+  if (G.dt > 100) G.dt = 16;
+
+  if (G.state === 'playing') {
+    updateGame(G.dt);
+  }
+
+  renderGame();
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+function updateGame(dt) {
+  updatePacman(dt);
+  updateGhosts(dt);
+  updatePowers(dt);
+  checkCollisions();
+  updateParticles(dt);
+  updateScatterMode(dt);
+  if (G.shakeTimer > 0) G.shakeTimer -= dt;
+  renderSidebar();
+}
+
+// ==================== PACMAN UPDATE ====================
+function updatePacman(dt) {
+  const p = G.pac;
+
+  // Mouth animation (independent of movement)
+  p.mouthAngle += p.mouthDir * dt * 0.006;
+  if (p.mouthAngle > 0.35) p.mouthDir = -1;
+  if (p.mouthAngle < 0.02) p.mouthDir = 1;
+
+  const spc = G.powers.speed ? p.secPerCell * 0.45 : p.secPerCell / G.levelSpeedMult;
+  p.progress += (dt / 1000) / spc;
+
+  if (p.progress >= 1) {
+    // Arrived at target cell
+    p.progress = 0;
+    p.col = p.tCol;
+    p.row = p.tRow;
+    // Tunnel wrap
+    if (p.col < 0) p.col = G.cols - 1;
+    if (p.col >= G.cols) p.col = 0;
+
+    // Eat cell contents
+    _eatCell(p.col, p.row);
+
+    // Try to turn to buffered direction first
+    const nd = p.nextDir;
+    const nc = p.col + nd.x, nr = p.row + nd.y;
+    if (cellPassable(nc, nr)) {
+      p.dir = {x: nd.x, y: nd.y};
+    }
+
+    // Try to continue in current direction
+    const fc = p.col + p.dir.x, fr = p.row + p.dir.y;
+    if (cellPassable(fc, fr)) {
+      p.tCol = fc; p.tRow = fr;
+    } else {
+      // Blocked — stay in place (progress stays 0, will retry next frame)
+      p.tCol = p.col; p.tRow = p.row;
+    }
+  }
+
+  // Smooth pixel interpolation
+  p.px = (p.col + p.progress * (p.tCol - p.col)) * CELL + CELL / 2;
+  p.py = (p.row + p.progress * (p.tRow - p.row)) * CELL + CELL / 2;
+}
+
+function cellPassable(col, row) {
+  if (row < 0 || row >= G.rows || col < 0 || col >= G.cols) return true; // tunnel
+  const cell = G.cells[row][col];
+  if (G.powers.ghost) return !cell.wall; // ghost mode: walk through doors
+  return !cell.wall && !cell.door;
+}
+
+function _eatCell(col, row) {
+  if (row < 0 || row >= G.rows || col < 0 || col >= G.cols) return;
+  const cell = G.cells[row][col];
+
+  if (cell.dot) {
+    cell.dot = false;
+    const pts = G.powers.star ? 30 : 10;
+    addScore(pts, col, row);
+    G.dotsEaten++;
+    // Magnet: suck up nearby dots
+    if (G.powers.magnet) {
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+        const nr = row + dr, nc = col + dc;
+        if (nr >= 0 && nr < G.rows && nc >= 0 && nc < G.cols && G.cells[nr][nc].dot) {
+          G.cells[nr][nc].dot = false;
+          G.dotsEaten++;
+          addScore(pts, nc, nr);
+        }
+      }
+    }
+  }
+  if (cell.power) {
+    cell.power = false;
+    G.dotsEaten++;
+    activatePower('inferno');
+    G.ghosts.forEach(gh => gh.frighten());
+    addScore(50, col, row);
+    spawnParticles(col, row, '#FF6B00', 12);
+  }
+  if (cell.pu) {
+    const type = cell.pu;
+    cell.pu = null;
+    activatePower(type);
+    spawnParticles(col, row, POWERS[type].color, 10);
+    showPUPopup(POWERS[type].icon + ' ' + POWERS[type].label, POWERS[type].color, col, row);
+  }
+  // Wall breaker
+  if (G.powers.breaker && cell.wall) {
+    cell.wall = false;
+    spawnParticles(col, row, '#FF006E', 6);
+  }
+
+  // Level up check
+  if (G.dotsEaten >= G.dotCount) {
+    G.state = 'levelup';
+    G.level++;
+    G.levelSpeedMult = Math.min(2, 1 + (G.level - 1) * 0.1);
+    showMessage('LEVEL ' + G.level + '!', 'KEEP CHOMPING...', 1500, () => {
+      const newMap = parseMap(G.mapKey);
+      G.cells = newMap.cells;
+      G.dotCount = newMap.dotCount;
+      G.dotsEaten = 0;
+      G.powerItems = newMap.powerUps;
+      G.pac.col = 1; G.pac.row = 1;
+      G.pac.tCol = 2; G.pac.tRow = 1;
+      G.pac.progress = 0;
+      G.state = 'playing';
+      G.ghosts.forEach(gh => { gh.mode = 'scatter'; gh.frightTimer = 0; gh.color = gh.baseColor; });
+    });
+  }
+}
+
+// ==================== GHOSTS UPDATE ====================
+function updateGhosts(dt) {
+  G.ghosts.forEach(gh => gh.update(dt, G.pac, G.cells, G.rows, G.cols));
+}
+
+function updateScatterMode(dt) {
+  G.scatterTimer -= dt;
+  if (G.scatterTimer <= 0) {
+    G.scatterMode = !G.scatterMode;
+    G.scatterTimer = G.scatterMode ? 7000 : 20000;
+    G.ghosts.forEach(gh => {
+      if (gh.mode !== 'eaten') gh.mode = G.scatterMode ? 'scatter' : 'chase';
+    });
+  }
+}
+
+// ==================== COLLISIONS ====================
+function checkCollisions() {
+  if (G.state !== 'playing') return;
+  const ppx = G.pac.px, ppy = G.pac.py;
+  for (const gh of G.ghosts) {
+    const dist = Math.hypot(ppx - gh.px, ppy - gh.py);
+    if (dist < CELL * 0.75) {
+      if (gh.mode === 'frightened' || G.powers.inferno) {
+        gh.eat();
+        G.ghostCombo++;
+        const pts = 200 * Math.pow(2, G.ghostCombo - 1);
+        addScore(pts, gh.col, gh.row);
+        spawnParticles(gh.col, gh.row, '#ffffff', 8);
+        showPUPopup('+' + pts, '#fff', gh.col, gh.row);
+      } else if (gh.mode !== 'eaten' && !G.powers.ghost) {
+        pacDie();
+        break;
+      }
+    }
+  }
+}
+
+function pacDie() {
+  if (G.state !== 'playing') return;
+  G.state = 'dying';
+  G.shakeTimer = 500;
+  G.lives--;
+  if (G.lives <= 0) {
+    setTimeout(() => gameOver(), 800);
+  } else {
+    showMessage('WASTED', 'LIVES: ' + G.lives, 1000, () => {
+      G.pac.col = 1; G.pac.row = 1;
+      G.pac.tCol = 2; G.pac.tRow = 1;
+      G.pac.progress = 0;
+      G.pac.dir = {x: 1, y: 0};
+      G.state = 'playing';
+      G.ghostCombo = 0;
+    });
+  }
+}
+
+// ==================== POWERS ====================
+function activatePower(type) {
+  G.powers[type] = POWERS[type].dur;
+}
+
+function updatePowers(dt) {
+  for (const [k, v] of Object.entries(G.powers)) {
+    G.powers[k] = v - dt;
+    if (G.powers[k] <= 0) delete G.powers[k];
+  }
+}
+
+// ==================== SCORE ====================
+function addScore(pts, col, row) {
+  G.score += pts;
+  G.floatTexts.push({
+    x: col * CELL + CELL / 2,
+    y: row * CELL,
+    text: '+' + pts, alpha: 1, vy: -0.4, life: 1200
+  });
+  document.getElementById('ui-score').textContent = G.score;
+}
+
+// ==================== PARTICLES ====================
+function spawnParticles(col, row, color, n) {
+  const cx = col * CELL + CELL / 2, cy = row * CELL + CELL / 2;
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.4 + Math.random() * 1.0;
+    G.particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color, alpha: 1, life: 600
+    });
+  }
+}
+
+function updateParticles(dt) {
+  G.particles = G.particles.filter(p => {
+    p.x += p.vx * dt * 0.06;
+    p.y += p.vy * dt * 0.06;
+    p.alpha -= dt / p.life;
+    return p.alpha > 0;
+  });
+  G.floatTexts = G.floatTexts.filter(t => {
+    t.y += t.vy * dt * 0.04;
+    t.alpha -= dt / t.life;
+    return t.alpha > 0;
+  });
+}
+
+// ==================== RENDER ====================
+function renderGame() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const C = CELL;
+
+  // Shake
+  ctx.save();
+  if (G.shakeTimer > 0) {
+    const shake = Math.sin(G.shakeTimer * 0.1) * 3;
+    ctx.translate(shake, 0);
+  }
+
+  // Background
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Cells
+  for (let r = 0; r < G.rows; r++) {
+    for (let c = 0; c < G.cols; c++) {
+      const cell = G.cells[r][c];
+      const x = c * C, y = r * C;
+      if (cell.wall) {
+        ctx.fillStyle = '#001133';
+        ctx.fillRect(x, y, C, C);
+        ctx.strokeStyle = '#00F5FF';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x+1, y+1, C-2, C-2);
+        // Inner glow
+        ctx.strokeStyle = 'rgba(0,245,255,0.15)';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x, y, C, C);
+      } else if (cell.door) {
+        ctx.fillStyle = 'rgba(255,180,82,0.4)';
+        ctx.fillRect(x, y+C/2-2, C, 4);
+      } else {
+        if (cell.dot) {
+          ctx.beginPath();
+          ctx.arc(x + C/2, y + C/2, 2, 0, Math.PI*2);
+          ctx.fillStyle = '#ffffff66';
+          ctx.fill();
+        }
+        if (cell.power) {
+          const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
+          ctx.beginPath();
+          ctx.arc(x + C/2, y + C/2, 5 * pulse, 0, Math.PI*2);
+          ctx.fillStyle = '#FF6B00';
+          ctx.shadowColor = '#FF6B00';
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        if (cell.pu) {
+          const pw = POWERS[cell.pu];
+          const t = Date.now() * 0.003;
+          ctx.save();
+          ctx.globalAlpha = 0.85 + 0.15 * Math.sin(t);
+          ctx.font = '14px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = pw.color;
+          ctx.shadowBlur = 8;
+          ctx.fillText(pw.icon, x + C/2, y + C/2);
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  // Ghosts
+  for (const gh of G.ghosts) {
+    const gx = gh.px, gy = gh.py;
+    const r = CELL * 0.44;
+    ctx.save();
+    let color = gh.color;
+    if (gh.mode === 'frightened') {
+      const flash = gh.frightTimer < 2000 && Math.floor(Date.now() / 200) % 2 === 0;
+      color = flash ? '#ffffff' : '#1a1aff';
+    } else if (gh.mode === 'eaten') {
+      drawGhostEyes(ctx, gx, gy, r);
+      ctx.restore();
+      continue;
+    }
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(gx, gy - r * 0.1, r, Math.PI, 0, false);
+    ctx.lineTo(gx + r, gy + r * 0.6);
+    const waves = 3;
+    for (let w = waves; w >= 0; w--) {
+      const wx = gx + r - (r * 2 * w / waves);
+      ctx.quadraticCurveTo(wx - r / waves, gy + r, wx - r / (waves * 2), gy + r * 0.5);
+    }
+    ctx.lineTo(gx - r, gy + r * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    if (gh.mode !== 'frightened') drawGhostEyes(ctx, gx, gy - r * 0.1, r);
+    ctx.restore();
+  }
+
+  // Pac-Man
+  const p = G.pac;
+  const ppx = p.px, ppy = p.py;
+  const angle = Math.atan2(p.dir.y, p.dir.x);
+  const mouth = p.mouthAngle;
+
+  ctx.save();
+  ctx.shadowColor = '#FFE600';
+  ctx.shadowBlur = 15;
+  if (G.powers.ghost) ctx.globalAlpha = 0.5;
+  if (G.powers.star) { ctx.shadowColor = '#00FF88'; ctx.shadowBlur = 25; }
+  ctx.fillStyle = '#FFE600';
+  ctx.beginPath();
+  ctx.moveTo(ppx, ppy);
+  ctx.arc(ppx, ppy, CELL * 0.45, angle + mouth, angle + Math.PI * 2 - mouth);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Particles (stored in pixel coords now)
+  for (const pt of G.particles) {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = pt.color;
+    ctx.globalAlpha = pt.alpha;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Float texts (pixel coords)
+  ctx.font = 'bold 10px Orbitron, monospace';
+  ctx.textAlign = 'center';
+  for (const ft of G.floatTexts) {
+    ctx.globalAlpha = ft.alpha;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(ft.text, ft.x, ft.y);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore(); // shake restore
+}
+
+function drawGhostEyes(ctx, x, y, r) {
+  const ew = r * 0.28, eh = r * 0.22;
+  [-1, 1].forEach(side => {
+    const ex = x + side * r * 0.3, ey = y - r * 0.15;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(ex, ey, ew, eh, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#00f';
+    ctx.beginPath(); ctx.arc(ex + ew*0.2, ey + eh*0.1, ew*0.5, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+// ==================== SIDEBAR ====================
+function renderSidebar() {
+  document.getElementById('ui-score').textContent = G.score;
+  document.getElementById('ui-level').textContent = G.level;
+  const livesEl = document.getElementById('ui-lives');
+  livesEl.innerHTML = '';
+  for (let i = 0; i < G.lives; i++) {
+    const span = document.createElement('span');
+    span.className = 'life-icon';
+    span.textContent = '🟡';
+    livesEl.appendChild(span);
+  }
+
+  const powersEl = document.getElementById('ui-powers');
+  powersEl.innerHTML = '';
+  const activePowers = Object.entries(G.powers);
+  if (activePowers.length === 0) {
+    const slot = document.createElement('div');
+    slot.className = 'power-slot';
+    slot.innerHTML = '<span class="picon">—</span><span>NONE</span>';
+    powersEl.appendChild(slot);
+  } else {
+    activePowers.forEach(([k, v]) => {
+      const pw = POWERS[k];
+      const pct = Math.max(0, (v / pw.dur) * 100);
+      const slot = document.createElement('div');
+      slot.className = 'power-slot active';
+      slot.style.borderColor = pw.color;
+      slot.style.color = pw.color;
+      slot.innerHTML = `<span class="picon">${pw.icon}</span><span>${pw.label}</span><div class="pbar"><div class="pbar-fill" style="width:${pct}%;background:${pw.color}"></div></div>`;
+      powersEl.appendChild(slot);
+    });
+  }
+}
+
+function updateHiScore() {
+  const hi = getHiScore();
+  document.getElementById('ui-hiscore').textContent = hi;
+}
+
+// ==================== MESSAGES ====================
+function showMessage(title, sub, duration, cb) {
+  const box = document.getElementById('msg-box');
+  document.getElementById('msg-title').textContent = title;
+  document.getElementById('msg-sub').textContent = sub;
+  box.classList.add('show');
+  setTimeout(() => {
+    box.classList.remove('show');
+    if (cb) setTimeout(cb, 300);
+  }, duration);
+}
+
+function showPUPopup(text, color, gx, gy) {
+  const pop = document.getElementById('pu-popup');
+  const canvas = document.getElementById('gameCanvas');
+  const rect = canvas.getBoundingClientRect();
+  pop.textContent = text;
+  pop.style.color = color;
+  pop.style.left = (rect.left + gx * CELL + CELL/2) + 'px';
+  pop.style.top = (rect.top + gy * CELL) + 'px';
+  pop.classList.add('show');
+  setTimeout(() => pop.classList.remove('show'), 700);
+}
+
+// ==================== GAME OVER ====================
+function gameOver() {
+  G.state = null;
+  cancelAnimationFrame(animFrame);
+
+  const isNew = saveScore(G.score, G.map.mapName);
+  document.getElementById('go-title').textContent = G.level > 1 ? 'WELL PLAYED!' : 'GAME OVER';
+  document.getElementById('go-score').textContent = G.score;
+  document.getElementById('go-detail').textContent = `LEVEL ${G.level} · ${G.map.mapName} · DOTS: ${G.dotsEaten}`;
+  document.getElementById('go-record').style.display = isNew ? 'block' : 'none';
+
+  showScreen('gameover');
+}
+
+// ==================== SCREENS ====================
+function showScreen(name) {
+  document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function startGame() {
+  playerName = document.getElementById('playerName').value.trim() || 'PLAYER';
+  showScreen('game');
+  initGame(selectedMap);
+}
+
+function endToMenu() {
+  cancelAnimationFrame(animFrame);
+  G.state = null;
+  showScreen('menu');
+}
+
+function showLeaderboard() {
+  renderLeaderboard();
+  showScreen('leaderboard');
+}
+
+function showHowToPlay() {
+  showMessage('HOW TO PLAY', 'ARROWS/WASD · EAT ALL DOTS · GRAB POWERS', 3000);
+}
+
+// ==================== LEADERBOARD ====================
+function getLeaderboard() {
+  try {
+    return JSON.parse(localStorage.getItem('chompr_lb') || '[]');
+  } catch { return []; }
+}
+
+function saveScore(score, mapName) {
+  const lb = getLeaderboard();
+  const name = playerName || 'PLAYER';
+  const hi = lb.filter(e => e.name === name).reduce((m, e) => Math.max(m, e.score), 0);
+  lb.push({ name, score, map: mapName, ts: Date.now() });
+  lb.sort((a,b) => b.score - a.score);
+  const top = lb.slice(0, 20);
+  localStorage.setItem('chompr_lb', JSON.stringify(top));
+  return score > hi;
+}
+
+function getHiScore() {
+  const lb = getLeaderboard();
+  if (!lb.length) return 0;
+  const name = playerName || 'PLAYER';
+  return lb.filter(e => e.name === name).reduce((m, e) => Math.max(m, e.score), 0) || lb[0].score;
+}
+
+function renderLeaderboard() {
+  const lb = getLeaderboard();
+  const el = document.getElementById('lb-entries');
+  if (!lb.length) {
+    el.innerHTML = '<div class="lb-empty">NO SCORES YET.<br>BE THE FIRST TO CHOMP!</div>';
+    return;
+  }
+  const rankClass = ['gold','silver','bronze'];
+  const rankEmoji = ['👑','🥈','🥉'];
+  el.innerHTML = lb.slice(0, 15).map((e, i) => {
+    const isMe = e.name === (playerName || 'PLAYER');
+    return `<div class="lb-row data ${rankClass[i] || ''}">
+      <div class="lb-rank ${i < 3 ? 'r'+(i+1) : ''}">${i < 3 ? rankEmoji[i] : (i+1)}</div>
+      <div class="lb-name">${esc(e.name)}${isMe ? '<span class="lb-you">YOU</span>' : ''}</div>
+      <div class="lb-score">${e.score.toLocaleString()}</div>
+      <div class="lb-map">${e.map}</div>
+    </div>`;
+  }).join('');
+}
+
+function clearLeaderboard() {
+  if (confirm('Clear all scores?')) {
+    localStorage.removeItem('chompr_lb');
+    renderLeaderboard();
+  }
+}
+
+function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ==================== CONTROLS ====================
+const DIR_MAP = {
+  ArrowLeft: {x:-1,y:0}, ArrowRight: {x:1,y:0}, ArrowUp: {x:0,y:-1}, ArrowDown: {x:0,y:1},
+  a: {x:-1,y:0}, d: {x:1,y:0}, w: {x:0,y:-1}, s: {x:0,y:1},
+  A: {x:-1,y:0}, D: {x:1,y:0}, W: {x:0,y:-1}, S: {x:0,y:1}
+};
+
+document.addEventListener('keydown', e => {
+  if (DIR_MAP[e.key] && G.pac && G.state === 'playing') {
+    G.pac.nextDir = DIR_MAP[e.key];
+    e.preventDefault();
+  }
+  if (e.key === 'Escape') endToMenu();
+  if (e.key === 'p' || e.key === 'P') {
+    if (G.state === 'playing') { G.state = 'paused'; showMessage('PAUSED', 'PRESS P TO RESUME', 99999); }
+    else if (G.state === 'paused') { G.state = 'playing'; G.lastTime = performance.now(); document.getElementById('msg-box').classList.remove('show'); }
+  }
+});
+
+function setDir(x, y) {
+  if (G.pac && G.state === 'playing') G.pac.nextDir = {x, y};
+}
+
+// ==================== UTILS ====================
+function shuffle(arr) {
+  for (let i = arr.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ==================== INIT ====================
+showScreen('menu');
+
+// Wire up all buttons via addEventListener (no onclick attrs - sandbox safe)
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-lb-menu').addEventListener('click', showLeaderboard);
+document.getElementById('btn-howto').addEventListener('click', showHowToPlay);
+document.getElementById('btn-sidebar-menu').addEventListener('click', endToMenu);
+document.getElementById('btn-playagain').addEventListener('click', startGame);
+document.getElementById('btn-lb-gameover').addEventListener('click', showLeaderboard);
+document.getElementById('btn-menu-gameover').addEventListener('click', endToMenu);
+document.getElementById('btn-play-lb').addEventListener('click', startGame);
+document.getElementById('btn-menu-lb').addEventListener('click', endToMenu);
+document.getElementById('btn-clear-lb').addEventListener('click', clearLeaderboard);
+
+// Mobile controls
+document.getElementById('btn-up').addEventListener('touchstart', function(e){ e.preventDefault(); setDir(0,-1); });
+document.getElementById('btn-down').addEventListener('touchstart', function(e){ e.preventDefault(); setDir(0,1); });
+document.getElementById('btn-left').addEventListener('touchstart', function(e){ e.preventDefault(); setDir(-1,0); });
+document.getElementById('btn-right').addEventListener('touchstart', function(e){ e.preventDefault(); setDir(1,0); });
+// Also allow click for mouse testing on mobile controls
+document.getElementById('btn-up').addEventListener('click', function(){ setDir(0,-1); });
+document.getElementById('btn-down').addEventListener('click', function(){ setDir(0,1); });
+document.getElementById('btn-left').addEventListener('click', function(){ setDir(-1,0); });
+document.getElementById('btn-right').addEventListener('click', function(){ setDir(1,0); });
+</script>
+</body>
+</html>
